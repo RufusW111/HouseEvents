@@ -35,8 +35,9 @@ namespace HouseEvents.Api
 
 			app.MapGet("/house/{houseName}", async (string houseName) =>
 			{
-				House house = await db.GetHouseInfoAsync(houseName);
-				return Results.Ok(house);
+				House? house = await db.GetHouseInfoAsync(houseName);
+				IResult result = house == null ? Results.NotFound() : Results.Ok(house);
+				return result;
 			});
 
 			app.MapPut("/house/{houseName}/coordinator", async (string houseName, [FromQuery(Name = "coord")] string coordinator) =>
