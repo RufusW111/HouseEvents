@@ -11,6 +11,7 @@ namespace HouseEvents.Api
 
 			// Add services to the container.
 			builder.Services.AddAuthorization();
+			builder.Services.AddProblemDetails();
 
 			var app = builder.Build();
 
