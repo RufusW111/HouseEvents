@@ -1,3 +1,5 @@
+using HouseEvents.Data;
+
 namespace HouseEvents.Api
 {
 	public class Program
@@ -20,22 +22,11 @@ namespace HouseEvents.Api
 
 			app.UseAuthorization();
 
-			var summaries = new[]
+			app.MapGet("/houseInfo", (HttpContext httpContext) =>
 			{
-			"Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-		};
-
-			app.MapGet("/test", (HttpContext httpContext) =>
-			{
-				var forecast = Enumerable.Range(1, 5).Select(index =>
-					new WeatherForecast
-					{
-						Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-						TemperatureC = Random.Shared.Next(-20, 55),
-						Summary = summaries[Random.Shared.Next(summaries.Length)]
-					})
-					.ToArray();
-				return forecast;
+				HouseEventsDB db = new (connectionString);
+				List<House> houses = db.GetHouseInfo();
+				return Results.Ok(houses);
 			});
 
 			app.Run();

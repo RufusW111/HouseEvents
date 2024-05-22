@@ -1,4 +1,4 @@
-﻿namespace HouseEvents.Classes
+﻿namespace HouseEvents.Data
 {
 	public class House
 	{
