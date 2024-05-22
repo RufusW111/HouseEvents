@@ -21,18 +21,38 @@ namespace HouseEvents.Data
 				cmd.CommandText = "SELECT HouseName, UndermasterFirstName, EventsCoordinator from dbo.House";
 				SqlDataReader reader = await cmd.ExecuteReaderAsync();
                 while (reader.Read())
-                {
-					object obj = reader.GetValue(2);
-					string coordinatorName = string.Empty;
-					if (obj is not DBNull)
-					{
-						coordinatorName = (string)obj;
-					}
-					House house = new House(reader.GetString(0), reader.GetString(1), coordinatorName);
-					result.Add(house);
+                {					
+					result.Add(GetHouse(reader));
                 }
             }
 			return result;
+		}
+
+		public async Task<House> GetHouseInfoAsync(string houseName)
+		{
+			House result;
+			using (SqlConnection connection = new SqlConnection(_connectionString))
+			{
+				connection.Open();
+				SqlCommand cmd = connection.CreateCommand();
+				cmd.CommandText = "SELECT HouseName, UndermasterFirstName, EventsCoordinator from dbo.House where HouseName = @houseName";
+				cmd.Parameters.Add(new SqlParameter("@HouseName", houseName));
+				SqlDataReader reader = await cmd.ExecuteReaderAsync();
+				reader.Read();
+				result = GetHouse(reader);
+			}
+			return result;
+		}
+
+		private House GetHouse(SqlDataReader reader)
+		{
+			object obj = reader.GetValue(2);
+			string coordinatorName = string.Empty;
+			if (obj is not DBNull)
+			{
+				coordinatorName = (string)obj;
+			}
+			return new House(reader.GetString(0), reader.GetString(1), coordinatorName);
 		}
 
 		public async Task UpdateEventsCoordinatorAsync(string houseName, string eventsCoordinator)
@@ -41,9 +61,9 @@ namespace HouseEvents.Data
 			{
 				connection.Open();
 				SqlCommand cmd = connection.CreateCommand();
-				cmd.CommandText = "UPDATE dbo.Houses SET EventsCoordinator = @EventsCoordinator where HouseName = @HouseName";
+				cmd.CommandText = "UPDATE dbo.House SET EventsCoordinator = @EventsCoordinator where HouseName = @HouseName";
 				cmd.Parameters.Add(new SqlParameter("@EventsCoordinator", eventsCoordinator));
-				cmd.Parameters.Add(new SqlParameter("@HouseName", eventsCoordinator));
+				cmd.Parameters.Add(new SqlParameter("@HouseName", houseName));
 				await cmd.ExecuteNonQueryAsync();
 			}
 		}

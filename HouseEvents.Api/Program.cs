@@ -29,7 +29,13 @@ namespace HouseEvents.Api
 			{				
 				List<House> houses = await db.GetHouseInfoAsync();
 				return Results.Ok(houses);
-			});			
+			});
+
+			app.MapGet("/house/{houseName}", async (string houseName) =>
+			{
+				House house = await db.GetHouseInfoAsync(houseName);
+				return Results.Ok(house);
+			});
 
 			app.MapPut("/house/{houseName}/coordinator", async (string houseName, [FromQuery(Name = "coord")] string coordinator) =>
 			{
