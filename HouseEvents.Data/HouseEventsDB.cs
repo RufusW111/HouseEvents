@@ -28,9 +28,9 @@ namespace HouseEvents.Data
 			return result;
 		}
 
-		public async Task<House> GetHouseInfoAsync(string houseName)
+		public async Task<House?> GetHouseInfoAsync(string houseName)
 		{
-			House result;
+			House? result = null;
 			using (SqlConnection connection = new SqlConnection(_connectionString))
 			{
 				connection.Open();
@@ -38,8 +38,10 @@ namespace HouseEvents.Data
 				cmd.CommandText = "SELECT HouseName, UndermasterFirstName, EventsCoordinator from dbo.House where HouseName = @houseName";
 				cmd.Parameters.Add(new SqlParameter("@HouseName", houseName));
 				SqlDataReader reader = await cmd.ExecuteReaderAsync();
-				reader.Read();
-				result = GetHouse(reader);
+				if (reader.Read())
+				{
+					result = GetHouse(reader);
+				}
 			}
 			return result;
 		}

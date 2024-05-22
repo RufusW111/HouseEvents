@@ -25,11 +25,13 @@ namespace HouseEvents.Api
 
 			HouseEventsDB db = new(connectionString);
 
-			app.MapGet("/house", async (HttpContext httpContext) =>
-			{				
+			app.MapGet("/", GetHouses);
+			app.MapGet("/house", GetHouses);
+			async Task<IResult> GetHouses() 
+			{
 				List<House> houses = await db.GetHouseInfoAsync();
 				return Results.Ok(houses);
-			});
+			};	
 
 			app.MapGet("/house/{houseName}", async (string houseName) =>
 			{
