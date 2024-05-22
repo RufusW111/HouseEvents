@@ -11,7 +11,7 @@ namespace HouseEvents.Data
 			_connectionString = connectionString;
 		}
 
-		public List<House> GetHouseInfo()
+		public async Task<List<House>> GetHouseInfoAsync()
 		{
 			List<House> result = new List<House>();
 			using (SqlConnection connection = new SqlConnection(_connectionString))
@@ -19,7 +19,7 @@ namespace HouseEvents.Data
 				connection.Open();
 				SqlCommand cmd = connection.CreateCommand();
 				cmd.CommandText = "SELECT HouseName, UndermasterFirstName, EventsCoordinator from dbo.House";
-				SqlDataReader reader = cmd.ExecuteReader();
+				SqlDataReader reader = await cmd.ExecuteReaderAsync();
                 while (reader.Read())
                 {
 					object obj = reader.GetValue(2);
@@ -33,6 +33,19 @@ namespace HouseEvents.Data
                 }
             }
 			return result;
+		}
+
+		public async Task UpdateEventsCoordinatorAsync(string houseName, string eventsCoordinator)
+		{
+			using (SqlConnection connection = new SqlConnection(_connectionString))
+			{
+				connection.Open();
+				SqlCommand cmd = connection.CreateCommand();
+				cmd.CommandText = "UPDATE dbo.Houses SET EventsCoordinator = @EventsCoordinator where HouseName = @HouseName";
+				cmd.Parameters.Add(new SqlParameter("@EventsCoordinator", eventsCoordinator));
+				cmd.Parameters.Add(new SqlParameter("@HouseName", eventsCoordinator));
+				await cmd.ExecuteNonQueryAsync();
+			}
 		}
 	}
 }

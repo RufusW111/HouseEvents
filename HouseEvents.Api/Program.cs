@@ -1,4 +1,5 @@
 using HouseEvents.Data;
+using Microsoft.AspNetCore.Mvc;
 
 namespace HouseEvents.Api
 {
@@ -22,11 +23,17 @@ namespace HouseEvents.Api
 
 			app.UseAuthorization();
 
-			app.MapGet("/houseInfo", (HttpContext httpContext) =>
-			{
-				HouseEventsDB db = new (connectionString);
-				List<House> houses = db.GetHouseInfo();
+			HouseEventsDB db = new(connectionString);
+
+			app.MapGet("/house", async (HttpContext httpContext) =>
+			{				
+				List<House> houses = await db.GetHouseInfoAsync();
 				return Results.Ok(houses);
+			});			
+
+			app.MapPut("/house/{houseName}/coordinator", async (string houseName, [FromQuery(Name = "coord")] string coordinator) =>
+			{
+				await db.UpdateEventsCoordinatorAsync(houseName, coordinator);
 			});
 
 			app.Run();
