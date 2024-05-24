@@ -33,8 +33,15 @@ namespace HouseEvents.Api
 			{
 				List<HouseDto> houses = await db.GetHouseInfoAsync();
 				return Results.Ok(houses);
-			};	
+			};
 
+			
+			app.MapGet("/eventNoFixtures", async () =>
+			{
+				List<EventNoFixturesDto> dto = await db.GetEventNoFixturesAsync();
+				return Results.Ok(dto);
+			});
+			
 			app.MapGet("/house/{houseName}", async (string houseName) =>
 			{
 				HouseDto? house = await db.GetHouseInfoAsync(houseName);

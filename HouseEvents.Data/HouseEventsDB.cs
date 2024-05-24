@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HouseEvents.Data
 {
-    public class HouseEventsDB
+	public class HouseEventsDB
 	{
 		private readonly string _connectionString;
 
@@ -22,31 +22,31 @@ namespace HouseEvents.Data
 				SqlCommand cmd = connection.CreateCommand();
 				cmd.CommandText = "SELECT HouseName, UndermasterFirstName, EventsCoordinator from dbo.House";
 				SqlDataReader reader = await cmd.ExecuteReaderAsync();
-                while (reader.Read())
-                {					
+				while (reader.Read())
+				{
 					result.Add(GetHouse(reader));
-                }
-            }
+				}
+			}
 			return result;
 		}
 
 		public async Task<List<EventNoFixturesDto>> GetEventNoFixturesAsync()
 		{
-			List<EventNoFixturesDto> result = new List<EventNoFixturesDto>();
-			using (SqlConnection connection = new SqlConnection(_connectionString))
+			List<EventNoFixturesDto> result = new();
+			using (SqlConnection connection = new(_connectionString))
 			{
 				connection.Open();
 				SqlCommand cmd = connection.CreateCommand();
-				cmd.CommandText = "select EventName, EventDetailId, EventDate, EventStartTime, EventEndTime, EventVenue, Notes, " +
-					"HouseName, Points, EventParticipantId, YearGroup, Reserve, StudentName, NoShow from " +
+				cmd.CommandText = "select EventId, EventName, EventDetailId, EventDate, EventStartTime, EventEndTime, EventVenue, Notes, " +
+					"HouseId, HouseName, Points, EventParticipantId, YearGroup, Reserve, StudentName, NoShow from " +
 					"[dbo].[vwEventParticipantsNoFixture] order by EventId, HouseId, Reserve, YearGroup";
 				SqlDataReader reader = await cmd.ExecuteReaderAsync();
-				while (reader.Read())
+				if (reader.Read())
 				{
-					result.Add(GetEventNoFixtures(reader));
+					result = GetEventNoFixtures(reader);
 				}
 			}
-			return result;			
+			return result;
 		}
 
 		public async Task<HouseDto?> GetHouseInfoAsync(string houseName)
@@ -69,13 +69,7 @@ namespace HouseEvents.Data
 
 		private static HouseDto GetHouse(SqlDataReader reader)
 		{
-			object obj = reader.GetValue(2);
-			string coordinatorName = string.Empty;
-			if (obj is not DBNull)
-			{
-				coordinatorName = (string)obj;
-			}
-			return new HouseDto(reader.GetString(0), reader.GetString(1), coordinatorName);
+			return new HouseDto(reader.GetString(0), reader.GetString(1), GetNullableString(reader.GetValue(2)));
 		}
 
 		private static string? GetNullableString(object obj)
@@ -88,19 +82,31 @@ namespace HouseEvents.Data
 			return ret;
 		}
 
-		private static EventNoFixturesDto GetEventNoFixtures(SqlDataReader reader)
+		private static List<EventNoFixturesDto> GetEventNoFixtures(SqlDataReader reader)
 		{
-			EventNoFixturesDto dto = new EventNoFixturesDto(reader.GetString(0), 
-				reader.GetInt32(1), reader.GetDateTime(2), reader.GetDateTime(3),
-				reader.GetDateTime(4), ;
-			
-			object obj = reader.GetValue(2);
-			string coordinatorName = string.Empty;
-			if (obj is not DBNull)
+			// Probably best to use Entity framework for this type of thing
+			// Illustrating how to do it without the use of frameworks
+			List<EventNoFixturesDto> result = new List<EventNoFixturesDto>();
+			int currentEntryId = -1;
+			//int currentHouseId = reader.GetInt32(8);	
+
+			do
 			{
-				coordinatorName = (string)obj;
-			}
-			return new HouseDto(reader.GetString(0), reader.GetString(1), coordinatorName);
+				int entryId = reader.GetInt32(0);
+				if (currentEntryId != entryId)
+				{
+					currentEntryId = entryId;
+					EventNoFixturesDto dto = new EventNoFixturesDto(reader.GetString(1),
+						reader.GetInt32(2), reader.GetFieldValue<DateOnly>(3), reader.GetFieldValue<TimeOnly>(4),
+						reader.GetFieldValue<TimeOnly>(5), GetNullableString(reader.GetValue(6)),
+						GetNullableString(reader.GetValue(7)));
+					result.Add(dto);
+
+				}
+			} while (reader.Read());
+
+
+			return result;
 		}
 
 		public async Task UpdateEventsCoordinatorAsync(string houseName, string eventsCoordinator)
