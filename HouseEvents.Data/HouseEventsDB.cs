@@ -1,8 +1,10 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using HouseEvents.Data.Dtos;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 
 namespace HouseEvents.Data
 {
-	public class HouseEventsDB
+    public class HouseEventsDB
 	{
 		private readonly string _connectionString;
 
@@ -11,9 +13,9 @@ namespace HouseEvents.Data
 			_connectionString = connectionString;
 		}
 
-		public async Task<List<House>> GetHouseInfoAsync()
+		public async Task<List<HouseDto>> GetHouseInfoAsync()
 		{
-			List<House> result = new List<House>();
+			List<HouseDto> result = new List<HouseDto>();
 			using (SqlConnection connection = new SqlConnection(_connectionString))
 			{
 				connection.Open();
@@ -28,9 +30,28 @@ namespace HouseEvents.Data
 			return result;
 		}
 
-		public async Task<House?> GetHouseInfoAsync(string houseName)
+		public async Task<List<EventNoFixturesDto>> GetEventNoFixturesAsync()
 		{
-			House? result = null;
+			List<EventNoFixturesDto> result = new List<EventNoFixturesDto>();
+			using (SqlConnection connection = new SqlConnection(_connectionString))
+			{
+				connection.Open();
+				SqlCommand cmd = connection.CreateCommand();
+				cmd.CommandText = "select EventName, EventDetailId, EventDate, EventStartTime, EventEndTime, EventVenue, Notes, " +
+					"HouseName, Points, EventParticipantId, YearGroup, Reserve, StudentName, NoShow from " +
+					"[dbo].[vwEventParticipantsNoFixture] order by EventId, HouseId, Reserve, YearGroup";
+				SqlDataReader reader = await cmd.ExecuteReaderAsync();
+				while (reader.Read())
+				{
+					result.Add(GetEventNoFixtures(reader));
+				}
+			}
+			return result;			
+		}
+
+		public async Task<HouseDto?> GetHouseInfoAsync(string houseName)
+		{
+			HouseDto? result = null;
 			using (SqlConnection connection = new SqlConnection(_connectionString))
 			{
 				connection.Open();
@@ -46,7 +67,7 @@ namespace HouseEvents.Data
 			return result;
 		}
 
-		private House GetHouse(SqlDataReader reader)
+		private static HouseDto GetHouse(SqlDataReader reader)
 		{
 			object obj = reader.GetValue(2);
 			string coordinatorName = string.Empty;
@@ -54,7 +75,32 @@ namespace HouseEvents.Data
 			{
 				coordinatorName = (string)obj;
 			}
-			return new House(reader.GetString(0), reader.GetString(1), coordinatorName);
+			return new HouseDto(reader.GetString(0), reader.GetString(1), coordinatorName);
+		}
+
+		private static string? GetNullableString(object obj)
+		{
+			string? ret = null;
+			if (obj is not DBNull)
+			{
+				ret = (string)obj;
+			}
+			return ret;
+		}
+
+		private static EventNoFixturesDto GetEventNoFixtures(SqlDataReader reader)
+		{
+			EventNoFixturesDto dto = new EventNoFixturesDto(reader.GetString(0), 
+				reader.GetInt32(1), reader.GetDateTime(2), reader.GetDateTime(3),
+				reader.GetDateTime(4), ;
+			
+			object obj = reader.GetValue(2);
+			string coordinatorName = string.Empty;
+			if (obj is not DBNull)
+			{
+				coordinatorName = (string)obj;
+			}
+			return new HouseDto(reader.GetString(0), reader.GetString(1), coordinatorName);
 		}
 
 		public async Task UpdateEventsCoordinatorAsync(string houseName, string eventsCoordinator)

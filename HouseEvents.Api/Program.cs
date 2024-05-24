@@ -1,9 +1,10 @@
 using HouseEvents.Data;
+using HouseEvents.Data.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HouseEvents.Api
 {
-	public class Program
+    public class Program
 	{
 		public static void Main(string[] args)
 		{
@@ -30,13 +31,13 @@ namespace HouseEvents.Api
 			app.MapGet("/house", GetHouses);
 			async Task<IResult> GetHouses() 
 			{
-				List<House> houses = await db.GetHouseInfoAsync();
+				List<HouseDto> houses = await db.GetHouseInfoAsync();
 				return Results.Ok(houses);
 			};	
 
 			app.MapGet("/house/{houseName}", async (string houseName) =>
 			{
-				House? house = await db.GetHouseInfoAsync(houseName);
+				HouseDto? house = await db.GetHouseInfoAsync(houseName);
 				IResult result = house == null ? Results.NotFound() : Results.Ok(house);
 				return result;
 			});
