@@ -16,10 +16,10 @@ namespace HouseEvents.Data.Dtos
 
         public string AllowableYearGroups { get; init; }
 
-        public bool NoShow { get; init; }
+        public bool? NoShow { get; init; }
 
         public ParticipantDto(int eventParticipantId, string? studentName, bool reserve, 
-            string allowableYearGroups, bool noShow) 
+            string allowableYearGroups, bool? noShow) 
         { 
             EventParticipantId = eventParticipantId;
             StudentName = studentName;

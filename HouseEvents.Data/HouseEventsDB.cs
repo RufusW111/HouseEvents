@@ -82,30 +82,66 @@ namespace HouseEvents.Data
 			return ret;
 		}
 
+		private static bool? GetNullableBoolean(object obj)
+		{
+			bool? ret = null;
+			if (obj is not DBNull)
+			{
+				ret = (bool)obj;
+			}
+			return ret;
+		}
+
+
 		private static List<EventNoFixturesDto> GetEventNoFixtures(SqlDataReader reader)
 		{
 			// Probably best to use Entity framework for this type of thing
 			// Illustrating how to do it without the use of frameworks
 			List<EventNoFixturesDto> result = new List<EventNoFixturesDto>();
 			int currentEntryId = -1;
-			//int currentHouseId = reader.GetInt32(8);	
+			int currentHouseId = -1;
+			EventNoFixturesDto? eventDto = null;
+			HouseEventDto? houseEventDto = null;
 
 			do
 			{
 				int entryId = reader.GetInt32(0);
 				if (currentEntryId != entryId)
 				{
+					if (eventDto != null)
+					{
+						result.Add(eventDto);
+					}
 					currentEntryId = entryId;
-					EventNoFixturesDto dto = new EventNoFixturesDto(reader.GetString(1),
+					eventDto = new (reader.GetString(1),
 						reader.GetInt32(2), reader.GetFieldValue<DateOnly>(3), reader.GetFieldValue<TimeOnly>(4),
 						reader.GetFieldValue<TimeOnly>(5), GetNullableString(reader.GetValue(6)),
 						GetNullableString(reader.GetValue(7)));
-					result.Add(dto);
-
 				}
+
+				int houseId = reader.GetInt32(8);
+				if (currentHouseId != houseId)
+				{
+					if (houseEventDto != null && eventDto != null)
+					{
+						eventDto.Houses.Add(houseEventDto);
+					}
+					currentHouseId = houseId;
+					houseEventDto = new (reader.GetString(9), reader.GetInt32(10));
+				}		
+
+				if (houseEventDto != null)
+				{
+					ParticipantDto participant = new(reader.GetInt32(11), GetNullableString(reader.GetValue(14)), reader.GetBoolean(13), reader.GetString(12), GetNullableBoolean(reader.GetValue(15)));
+					houseEventDto.Participants.Add(participant);
+				}
+
 			} while (reader.Read());
 
-
+			if (eventDto != null)
+			{
+				result.Add(eventDto);
+			}
 			return result;
 		}
 
