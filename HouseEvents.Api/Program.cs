@@ -34,8 +34,7 @@ namespace HouseEvents.Api
 				List<HouseDto> houses = await db.GetHouseInfoAsync();
 				return Results.Ok(houses);
 			};
-
-			
+						
 			app.MapGet("/eventNoFixtures", async () =>
 			{
 				List<EventNoFixturesDto> dto = await db.GetEventNoFixturesAsync();
@@ -56,9 +55,14 @@ namespace HouseEvents.Api
 				return result;
 			});
 
-			app.MapPut("/house/{houseName}/coordinator", async (string houseName, [FromQuery(Name = "coord")] string coordinator) =>
+			app.MapPut("/house/{houseName}/coordinator", async (string houseName, [FromQuery(Name = "coord")] string? coordinator) =>
 			{
 				await db.UpdateEventsCoordinatorAsync(houseName, coordinator);
+			});
+
+			app.MapPut("/participant/{participantId}", async (int participantId, [FromQuery(Name = "student")] string? studentName) =>
+			{
+				await db.UpdateEventParticipantAsync(participantId, studentName);
 			});
 
 			app.MapPost("/newEventNoFixtures", async (NewEventNoFixturesDto dto) =>

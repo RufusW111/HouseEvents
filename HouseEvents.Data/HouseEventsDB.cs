@@ -94,15 +94,43 @@ namespace HouseEvents.Data
 			return result;
 		}
 
-		public async Task UpdateEventsCoordinatorAsync(string houseName, string eventsCoordinator)
+		public async Task UpdateEventsCoordinatorAsync(string houseName, string? eventsCoordinator)
 		{
 			using (SqlConnection connection = new (_connectionString))
 			{
 				connection.Open();
 				SqlCommand cmd = connection.CreateCommand();
 				cmd.CommandText = "UPDATE dbo.House SET EventsCoordinator = @EventsCoordinator where HouseName = @HouseName";
-				cmd.Parameters.Add(new SqlParameter("@EventsCoordinator", eventsCoordinator));
+				if (string.IsNullOrWhiteSpace(eventsCoordinator))
+				{
+					cmd.Parameters.Add(new SqlParameter("@EventsCoordinator", DBNull.Value));
+				}
+				else
+				{
+					cmd.Parameters.Add(new SqlParameter("@EventsCoordinator", eventsCoordinator));
+				}
 				cmd.Parameters.Add(new SqlParameter("@HouseName", houseName));
+				await cmd.ExecuteNonQueryAsync();
+			}
+		}
+
+		public async Task UpdateEventParticipantAsync(int participantId, string? studentName)
+		{
+			using (SqlConnection connection = new(_connectionString))
+			{
+				connection.Open();
+				SqlCommand cmd = connection.CreateCommand();
+				cmd.CommandText = "UPDATE dbo.EventParticipant SET StudentName = @StudentName where EventParticipantId = @EventParticipantId";
+				cmd.Parameters.Add(new SqlParameter("@EventParticipantId", participantId));
+				if (string.IsNullOrWhiteSpace(studentName))
+				{
+					cmd.Parameters.Add(new SqlParameter("@StudentName", DBNull.Value));
+				}
+				else
+				{
+					cmd.Parameters.Add(new SqlParameter("@StudentName", studentName));
+				}
+				
 				await cmd.ExecuteNonQueryAsync();
 			}
 		}
