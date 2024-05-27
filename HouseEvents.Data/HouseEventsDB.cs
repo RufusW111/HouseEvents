@@ -1,6 +1,9 @@
 ﻿using HouseEvents.Data.Dtos;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+using static Azure.Core.HttpHeader;
 
 namespace HouseEvents.Data
 {
@@ -67,6 +70,93 @@ namespace HouseEvents.Data
 			return result;
 		}
 
+		public async Task UpdateEventsCoordinatorAsync(string houseName, string eventsCoordinator)
+		{
+			using (SqlConnection connection = new SqlConnection(_connectionString))
+			{
+				connection.Open();
+				SqlCommand cmd = connection.CreateCommand();
+				cmd.CommandText = "UPDATE dbo.House SET EventsCoordinator = @EventsCoordinator where HouseName = @HouseName";
+				cmd.Parameters.Add(new SqlParameter("@EventsCoordinator", eventsCoordinator));
+				cmd.Parameters.Add(new SqlParameter("@HouseName", houseName));
+				await cmd.ExecuteNonQueryAsync();
+			}
+		}
+
+		public async Task InsertEventNoFixturesAsync(NewEventNoFixturesDto dto)
+		{
+			using (SqlConnection connection = new SqlConnection(_connectionString))
+			{
+				connection.Open();
+				SqlTransaction sqlTransaction = connection.BeginTransaction();
+				try
+				{
+					int eventId = await InsertEventAsync(connection, dto.EventName, dto.EventDate);
+					int eventDetailId = await InsertEventDetailAsync(connection, eventId, dto);
+					await InsertHouseEventAsync(connection, eventDetailId);
+					
+					// Insert participants
+				}
+				catch (SqlException ex) 
+				{ 
+					sqlTransaction.Rollback();
+					throw ex;				
+				}
+				finally 
+				{ 
+					sqlTransaction.Commit(); 
+				}
+				
+			}
+		}
+
+		private static async Task InsertHouseEventAsync(SqlConnection connection, int eventDetailId)
+		{
+			SqlCommand cmd = connection.CreateCommand();
+			cmd.CommandText = "INSERT INTO dbo.[HouseEvent](EventDetailID, HouseID, Points) " +
+				"select @EventDetailId, houseId, 0 from dbo.House ";
+			cmd.Parameters.Add(new SqlParameter("@EventDetailId", eventDetailId));
+			await cmd.ExecuteNonQueryAsync();
+		}
+
+		private static async Task<int> InsertEventDetailAsync(SqlConnection connection, int eventId, NewEventNoFixturesDto dto)
+		{
+			SqlCommand cmd = connection.CreateCommand();
+			cmd.CommandText = "INSERT INTO dbo.[EventDetail](EventID, EventDate, EventStartTime, EventEndTime, EventVenue, Notes) " +
+				"values(@EventID, @EventDate, @EventStartTime, @EventEndTime, @EventVenue, @Notes) " +
+				"OUTPUT INSERTED.EventDetailID ";
+			cmd.Parameters.Add(new SqlParameter("@EventId", eventId));
+			cmd.Parameters.Add(new SqlParameter("@EventDate", dto.EventDate));
+			cmd.Parameters.Add(new SqlParameter("@EventStartTime", dto.EventEndTime));
+			cmd.Parameters.Add(new SqlParameter("@EventEndTime", dto.EventStartTime));
+			cmd.Parameters.Add(new SqlParameter("@EventVenue", dto.Venue));
+			cmd.Parameters.Add(new SqlParameter("@Notes", dto.Notes));
+			var result = await cmd.ExecuteScalarAsync();
+			int eventDetailId = Convert.ToInt32(result);
+			return eventDetailId;
+		}
+
+		private static async Task<int> InsertEventAsync(SqlConnection connection, string eventName, DateOnly eventDate)
+		{
+			SqlCommand cmd = connection.CreateCommand();
+			cmd.CommandText = "INSERT INTO dbo.[Event](EventName, SchoolYear) values(@EventName, @EventSchoolYear) OUTPUT INSERTED.EventID ";
+			cmd.Parameters.Add(new SqlParameter("@EventsName", eventName));
+			cmd.Parameters.Add(new SqlParameter("@SchoolYear", GetSchoolYear(eventDate)));
+			var result = await cmd.ExecuteScalarAsync();
+			int eventId = Convert.ToInt32(result);
+			return eventId;
+		}
+
+		private static int GetSchoolYear(DateOnly eventDate)
+		{
+			int ret = eventDate.Year;
+			if (eventDate.Month < 9) {
+
+				ret -= 1;
+			}
+			return ret;
+		}
+
 		private static HouseDto GetHouse(SqlDataReader reader)
 		{
 			return new HouseDto(reader.GetString(0), reader.GetString(1), GetNullableString(reader.GetValue(2)));
@@ -91,7 +181,6 @@ namespace HouseEvents.Data
 			}
 			return ret;
 		}
-
 
 		private static List<EventNoFixturesDto> GetEventNoFixtures(SqlDataReader reader)
 		{
@@ -145,17 +234,6 @@ namespace HouseEvents.Data
 			return result;
 		}
 
-		public async Task UpdateEventsCoordinatorAsync(string houseName, string eventsCoordinator)
-		{
-			using (SqlConnection connection = new SqlConnection(_connectionString))
-			{
-				connection.Open();
-				SqlCommand cmd = connection.CreateCommand();
-				cmd.CommandText = "UPDATE dbo.House SET EventsCoordinator = @EventsCoordinator where HouseName = @HouseName";
-				cmd.Parameters.Add(new SqlParameter("@EventsCoordinator", eventsCoordinator));
-				cmd.Parameters.Add(new SqlParameter("@HouseName", houseName));
-				await cmd.ExecuteNonQueryAsync();
-			}
-		}
+		
 	}
 }

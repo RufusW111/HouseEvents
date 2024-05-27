@@ -54,6 +54,11 @@ namespace HouseEvents.Api
 				await db.UpdateEventsCoordinatorAsync(houseName, coordinator);
 			});
 
+			app.MapPost("/newEventNoFixtures", async (NewEventNoFixturesDto dto) =>
+			{
+
+			});
+
 			app.Run();
 		}
 	}
