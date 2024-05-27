@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
+using System.Data;
 using static Azure.Core.HttpHeader;
 
 namespace HouseEvents.Data
@@ -44,9 +45,32 @@ namespace HouseEvents.Data
 					"HouseId, HouseName, Points, EventParticipantId, YearGroup, Reserve, StudentName, NoShow from " +
 					"[dbo].[vwEventParticipantsNoFixture] order by EventId, HouseId, Reserve, YearGroup";
 				SqlDataReader reader = await cmd.ExecuteReaderAsync();
-				if (reader.Read())
+				if (reader.HasRows)
 				{
-					result = GetEventNoFixtures(reader);
+					result = GetEventsNoFixtures(reader);
+				}
+			}
+			return result;
+		}
+
+		public async Task<EventNoFixturesDto?> GetEventNoFixturesAsync(int eventId)
+		{
+			EventNoFixturesDto? result = null;
+			using (SqlConnection connection = new(_connectionString))
+			{
+				connection.Open();
+				SqlCommand cmd = connection.CreateCommand();
+				cmd.CommandText = "select EventId, EventName, EventDetailId, EventDate, EventStartTime, EventEndTime, EventVenue, Notes, " +
+					"HouseId, HouseName, Points, EventParticipantId, YearGroup, Reserve, StudentName, NoShow from " +
+					"[dbo].[vwEventParticipantsNoFixture] where EventId = @EventId order by EventId, HouseId, Reserve, YearGroup";
+				cmd.Parameters.Add(new SqlParameter("@EventId", eventId));
+				SqlDataReader reader = await cmd.ExecuteReaderAsync();
+				int index = 0;
+				if (reader.HasRows)
+				{
+					var dataTable = new DataTable();
+					dataTable.Load(reader);
+					result = GetEventNoFixtures(dataTable.Rows, ref index);
 				}
 			}
 			return result;
@@ -72,7 +96,7 @@ namespace HouseEvents.Data
 
 		public async Task UpdateEventsCoordinatorAsync(string houseName, string eventsCoordinator)
 		{
-			using (SqlConnection connection = new SqlConnection(_connectionString))
+			using (SqlConnection connection = new (_connectionString))
 			{
 				connection.Open();
 				SqlCommand cmd = connection.CreateCommand();
@@ -83,48 +107,70 @@ namespace HouseEvents.Data
 			}
 		}
 
-		public async Task InsertEventNoFixturesAsync(NewEventNoFixturesDto dto)
+		public async Task<int> InsertEventNoFixturesAsync(NewEventNoFixturesDto dto)
 		{
+			int eventId = 0;
 			using (SqlConnection connection = new SqlConnection(_connectionString))
 			{
 				connection.Open();
 				SqlTransaction sqlTransaction = connection.BeginTransaction();
 				try
 				{
-					int eventId = await InsertEventAsync(connection, dto.EventName, dto.EventDate);
-					int eventDetailId = await InsertEventDetailAsync(connection, eventId, dto);
-					await InsertHouseEventAsync(connection, eventDetailId);
+					eventId = await InsertEventAsync(connection, sqlTransaction, dto.EventName, dto.EventDate);
+					int eventDetailId = await InsertEventDetailAsync(connection, sqlTransaction, eventId, dto);
+					await InsertHouseEventAsync(connection, sqlTransaction, eventDetailId);
 					
-					// Insert participants
+					List<Task> tasks = new List<Task>();
+					foreach (ParticipantDetailDto item in dto.Participants)
+					{
+						tasks.Add(InsertParticipantAsync(connection, sqlTransaction, eventDetailId, item));
+					}
+					Task.WaitAll(tasks.ToArray());
+					sqlTransaction.Commit();
 				}
 				catch (SqlException ex) 
 				{ 
 					sqlTransaction.Rollback();
 					throw ex;				
 				}
-				finally 
-				{ 
-					sqlTransaction.Commit(); 
-				}
-				
 			}
+			return eventId;
 		}
 
-		private static async Task InsertHouseEventAsync(SqlConnection connection, int eventDetailId)
+		private static async Task InsertParticipantAsync(SqlConnection connection, SqlTransaction transaction, int eventDetailId, ParticipantDetailDto dto)
 		{
 			SqlCommand cmd = connection.CreateCommand();
+			cmd.Transaction = transaction;
+			cmd.CommandText = "INSERT INTO dbo.EventParticipant(HouseEventId, YearGroup, Reserve) " +
+			"SELECT HouseEventId, @YearGroup, @IsReserve FROM dbo.HouseEvent WHERE eventDetailId = @EventDetailId";
+			for (int i = 2; i <= dto.NumberRequired; i++)
+			{
+				cmd.CommandText += "UNION " +
+					"SELECT HouseEventId, @YearGroup, @IsReserve FROM dbo.HouseEvent WHERE eventDetailId = @EventDetailId";
+			}
+			cmd.Parameters.Add(new SqlParameter("@EventDetailId", eventDetailId));
+			cmd.Parameters.Add(new SqlParameter("@YearGroup", dto.AllowableYearGroups));
+			cmd.Parameters.Add(new SqlParameter("@IsReserve", dto.Reserve));
+			await cmd.ExecuteNonQueryAsync();
+		}
+
+		private static async Task InsertHouseEventAsync(SqlConnection connection, SqlTransaction transaction, int eventDetailId)
+		{
+			SqlCommand cmd = connection.CreateCommand();
+			cmd.Transaction = transaction;
 			cmd.CommandText = "INSERT INTO dbo.[HouseEvent](EventDetailID, HouseID, Points) " +
 				"select @EventDetailId, houseId, 0 from dbo.House ";
 			cmd.Parameters.Add(new SqlParameter("@EventDetailId", eventDetailId));
 			await cmd.ExecuteNonQueryAsync();
 		}
 
-		private static async Task<int> InsertEventDetailAsync(SqlConnection connection, int eventId, NewEventNoFixturesDto dto)
+		private static async Task<int> InsertEventDetailAsync(SqlConnection connection, SqlTransaction transaction, int eventId, NewEventNoFixturesDto dto)
 		{
 			SqlCommand cmd = connection.CreateCommand();
+			cmd.Transaction = transaction;
 			cmd.CommandText = "INSERT INTO dbo.[EventDetail](EventID, EventDate, EventStartTime, EventEndTime, EventVenue, Notes) " +
-				"values(@EventID, @EventDate, @EventStartTime, @EventEndTime, @EventVenue, @Notes) " +
-				"OUTPUT INSERTED.EventDetailID ";
+				"OUTPUT INSERTED.EventDetailID " +
+				"values(@EventID, @EventDate, @EventStartTime, @EventEndTime, @EventVenue, @Notes) ";				
 			cmd.Parameters.Add(new SqlParameter("@EventId", eventId));
 			cmd.Parameters.Add(new SqlParameter("@EventDate", dto.EventDate));
 			cmd.Parameters.Add(new SqlParameter("@EventStartTime", dto.EventEndTime));
@@ -136,12 +182,13 @@ namespace HouseEvents.Data
 			return eventDetailId;
 		}
 
-		private static async Task<int> InsertEventAsync(SqlConnection connection, string eventName, DateOnly eventDate)
+		private static async Task<int> InsertEventAsync(SqlConnection connection, SqlTransaction transaction, string eventName, DateOnly eventDate)
 		{
 			SqlCommand cmd = connection.CreateCommand();
-			cmd.CommandText = "INSERT INTO dbo.[Event](EventName, SchoolYear) values(@EventName, @EventSchoolYear) OUTPUT INSERTED.EventID ";
-			cmd.Parameters.Add(new SqlParameter("@EventsName", eventName));
-			cmd.Parameters.Add(new SqlParameter("@SchoolYear", GetSchoolYear(eventDate)));
+			cmd.Transaction = transaction;
+			cmd.CommandText = "INSERT INTO dbo.[Event](EventName, SchoolYear) OUTPUT INSERTED.EventID  VALUES (@EventName, @EventSchoolYear) ";
+			cmd.Parameters.Add(new SqlParameter("@EventName", eventName));
+			cmd.Parameters.Add(new SqlParameter("@EventSchoolYear", GetSchoolYear(eventDate)));
 			var result = await cmd.ExecuteScalarAsync();
 			int eventId = Convert.ToInt32(result);
 			return eventId;
@@ -182,55 +229,53 @@ namespace HouseEvents.Data
 			return ret;
 		}
 
-		private static List<EventNoFixturesDto> GetEventNoFixtures(SqlDataReader reader)
+
+		private static EventNoFixturesDto GetEventNoFixtures(DataRowCollection rows, ref int index)
 		{
-			// Probably best to use Entity framework for this type of thing
-			// Illustrating how to do it without the use of frameworks
-			List<EventNoFixturesDto> result = new List<EventNoFixturesDto>();
-			int currentEntryId = -1;
-			int currentHouseId = -1;
-			EventNoFixturesDto? eventDto = null;
-			HouseEventDto? houseEventDto = null;
+			DataRow row = rows[index];
+			
+			EventNoFixturesDto eventDto = new(row.Field<int>(0), row.Field<string>(1) ?? string.Empty, row.Field<int>(2),
+				DateOnly.FromDateTime(row.Field<DateTime>(3)),  TimeOnly.FromTimeSpan(row.Field<TimeSpan>(4)), 
+				TimeOnly.FromTimeSpan(row.Field<TimeSpan>(5)), GetNullableString(row[6]),
+				GetNullableString(row[7]));
+
+			HouseEventDto houseEventDto = new(row.Field<string>(9) ?? string.Empty, row.Field<int>(10));
+			eventDto.Houses.Add(houseEventDto);
 
 			do
 			{
-				int entryId = reader.GetInt32(0);
-				if (currentEntryId != entryId)
+				row = rows[index];
+
+				if (houseEventDto.HouseName != row.Field<string>(9))
 				{
-					if (eventDto != null)
-					{
-						result.Add(eventDto);
-					}
-					currentEntryId = entryId;
-					eventDto = new (reader.GetString(1),
-						reader.GetInt32(2), reader.GetFieldValue<DateOnly>(3), reader.GetFieldValue<TimeOnly>(4),
-						reader.GetFieldValue<TimeOnly>(5), GetNullableString(reader.GetValue(6)),
-						GetNullableString(reader.GetValue(7)));
+					houseEventDto = new(row.Field<string>(9) ?? string.Empty, row.Field<int>(10));
+					eventDto.Houses.Add(houseEventDto);
 				}
 
-				int houseId = reader.GetInt32(8);
-				if (currentHouseId != houseId)
-				{
-					if (houseEventDto != null && eventDto != null)
-					{
-						eventDto.Houses.Add(houseEventDto);
-					}
-					currentHouseId = houseId;
-					houseEventDto = new (reader.GetString(9), reader.GetInt32(10));
-				}		
+				ParticipantDto participant = new(row.Field<int>(11), GetNullableString(row[14]), row.Field<bool>(13), row.Field<string>(12) ?? string.Empty, GetNullableBoolean(row[15]));
+				houseEventDto.Participants.Add(participant);
 
-				if (houseEventDto != null)
-				{
-					ParticipantDto participant = new(reader.GetInt32(11), GetNullableString(reader.GetValue(14)), reader.GetBoolean(13), reader.GetString(12), GetNullableBoolean(reader.GetValue(15)));
-					houseEventDto.Participants.Add(participant);
-				}
+				index += 1;				
 
-			} while (reader.Read());
+			} while (index < rows.Count  && eventDto.EventId == row.Field<int>(0));
 
-			if (eventDto != null)
+			return eventDto;
+		}
+		private static List<EventNoFixturesDto> GetEventsNoFixtures(SqlDataReader reader)
+		{
+			// Probably best to use Entity framework for this type of thing
+			// But illustrating how to do it without the use of frameworks. It's quite painful.
+			var dataTable = new DataTable();
+			dataTable.Load(reader);
+			List<EventNoFixturesDto> result = new List<EventNoFixturesDto>();
+			int index = 0;
+			do
 			{
+				var eventDto = GetEventNoFixtures(dataTable.Rows, ref index);
 				result.Add(eventDto);
-			}
+
+			} while (index < dataTable.Rows.Count);
+
 			return result;
 		}
 

@@ -10,7 +10,7 @@ namespace HouseEvents.Data.Dtos
 	{
 		public bool Reserve { get; set; }
 
-		public string? AllowableYearGroups { get; set; }
+		public string AllowableYearGroups { get; set; } = string.Empty;
 
 		public int NumberRequired { get; set; }
 	}

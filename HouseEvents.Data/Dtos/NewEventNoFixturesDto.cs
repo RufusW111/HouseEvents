@@ -8,7 +8,7 @@ namespace HouseEvents.Data.Dtos
 {
 	public class NewEventNoFixturesDto
 	{
-		public string EventName { get; private set; } = string.Empty;
+		public string EventName { get; set; } = string.Empty;
 
 		public DateOnly EventDate { get; set; }
 
@@ -19,6 +19,8 @@ namespace HouseEvents.Data.Dtos
 		public string Venue { get; set; } = string.Empty;
 
 		public string Notes { get; set; } = string.Empty;
+
+		public List<ParticipantDetailDto> Participants { get; set; } = new List<ParticipantDetailDto>();
 	}
 }
 

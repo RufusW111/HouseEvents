@@ -41,7 +41,14 @@ namespace HouseEvents.Api
 				List<EventNoFixturesDto> dto = await db.GetEventNoFixturesAsync();
 				return Results.Ok(dto);
 			});
-			
+
+			app.MapGet("/eventNoFixtures/{eventId}", async (int eventId) =>
+			{
+				EventNoFixturesDto? dto = await db.GetEventNoFixturesAsync(eventId);
+				IResult result = dto == null ? Results.NotFound() : Results.Ok(dto);
+				return result;
+			});
+
 			app.MapGet("/house/{houseName}", async (string houseName) =>
 			{
 				HouseDto? house = await db.GetHouseInfoAsync(houseName);
@@ -56,7 +63,8 @@ namespace HouseEvents.Api
 
 			app.MapPost("/newEventNoFixtures", async (NewEventNoFixturesDto dto) =>
 			{
-
+				int eventId = await db.InsertEventNoFixturesAsync(dto);
+				return Results.Ok(eventId);
 			});
 
 			app.Run();

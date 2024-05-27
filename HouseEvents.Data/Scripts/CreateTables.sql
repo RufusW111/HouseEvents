@@ -84,7 +84,7 @@ f.EventParticipantId, f.YearGroup, f.Reserve, f.StudentName, f.NoShow FROM
 GROUP BY EventId
 HAVING count(*) = 1) a 
 INNER JOIN dbo.[Event] b on a.EventId = b.EventId
-INNER JOIN dbo.EventDetail c on a.EventId = b.EventId
+INNER JOIN dbo.EventDetail c on a.EventId = c.EventId
 INNER JOIN dbo.HouseEvent d on c.EventDetailID = d.EventDetailID
 INNER JOIN dbo.House e on d.HouseId = e.HouseID
 INNER JOIN dbo.EventParticipant f on d.HouseEventId = f.HouseEventId
