@@ -18,7 +18,7 @@ namespace HouseEvents.Api
 
 			// Get connection string
 			string connectionString = app.Configuration["ConnectionStrings:HouseEventDb"] ?? string.Empty;
-			app.Logger.Log(LogLevel.Information, connectionString);
+			app.Logger.Log(LogLevel.Information, "Connection string: {connectionString}", connectionString);
 			
 			// Configure the HTTP request pipeline.
 			app.UseHttpsRedirection();

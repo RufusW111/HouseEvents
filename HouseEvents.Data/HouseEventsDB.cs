@@ -17,13 +17,13 @@ namespace HouseEvents.Data
 			_connectionString = connectionString;
 		}
 
-		// All database calls are not being made asynchronously
+		// All database calls are being made asynchronously
 		// This is important as a web service will service many requests but will have a limited number of threads to use
 		// This means that while the calls are being made threads can be used on other calls
 		public async Task<List<HouseDto>> GetHouseInfoAsync()
 		{
-			List<HouseDto> result = new List<HouseDto>();
-			using (SqlConnection connection = new SqlConnection(_connectionString))
+			List<HouseDto> result = new ();
+			using (SqlConnection connection = new (_connectionString))
 			{
 				connection.Open();
 				SqlCommand cmd = connection.CreateCommand();
@@ -82,7 +82,7 @@ namespace HouseEvents.Data
 		public async Task<HouseDto?> GetHouseInfoAsync(string houseName)
 		{
 			HouseDto? result = null;
-			using (SqlConnection connection = new SqlConnection(_connectionString))
+			using (SqlConnection connection = new (_connectionString))
 			{
 				connection.Open();
 				SqlCommand cmd = connection.CreateCommand();
@@ -141,7 +141,7 @@ namespace HouseEvents.Data
 		public async Task<int> InsertEventNoFixturesAsync(NewEventNoFixturesDto dto)
 		{
 			int eventId = 0;
-			using (SqlConnection connection = new SqlConnection(_connectionString))
+			using (SqlConnection connection = new (_connectionString))
 			{
 				connection.Open();
 				SqlTransaction sqlTransaction = connection.BeginTransaction();
@@ -151,7 +151,7 @@ namespace HouseEvents.Data
 					int eventDetailId = await InsertEventDetailAsync(connection, sqlTransaction, eventId, dto);
 					await InsertHouseEventAsync(connection, sqlTransaction, eventDetailId);
 					
-					List<Task> tasks = new List<Task>();
+					List<Task> tasks = new ();
 					foreach (ParticipantDetailDto item in dto.Participants)
 					{
 						tasks.Add(InsertParticipantAsync(connection, sqlTransaction, eventDetailId, item));
@@ -298,7 +298,7 @@ namespace HouseEvents.Data
 			// But illustrating how to do it without the use of frameworks. It's quite painful.
 			var dataTable = new DataTable();
 			dataTable.Load(reader);
-			List<EventNoFixturesDto> result = new List<EventNoFixturesDto>();
+			List<EventNoFixturesDto> result = new ();
 			int index = 0;
 			do
 			{
