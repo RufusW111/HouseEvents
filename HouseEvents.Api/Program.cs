@@ -25,8 +25,10 @@ namespace HouseEvents.Api
 
 			app.UseAuthorization();
 
+			// Creates class to interact with the database
 			HouseEventsDB db = new(connectionString);
 
+			// Creates the api interface
 			app.MapGet("/", GetHouses);
 			app.MapGet("/house", GetHouses);
 			async Task<IResult> GetHouses() 

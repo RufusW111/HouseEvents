@@ -17,6 +17,9 @@ namespace HouseEvents.Data
 			_connectionString = connectionString;
 		}
 
+		// All database calls are not being made asynchronously
+		// This is important as a web service will service many requests but will have a limited number of threads to use
+		// This means that while the calls are being made threads can be used on other calls
 		public async Task<List<HouseDto>> GetHouseInfoAsync()
 		{
 			List<HouseDto> result = new List<HouseDto>();
