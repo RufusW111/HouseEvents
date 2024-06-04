@@ -5,34 +5,34 @@ delete from dbo.House
 go
 
 insert into dbo.House (HouseName, UndermasterFirstName, EventsCoordinator)
-values ('Harrison', 'Glenn', 'Natalie Dillon')
+values ('Harrison', 'Hamish', 'Jane Smith')
 go
 
 insert into dbo.House (HouseName, UndermasterFirstName, EventsCoordinator)
-values ('Field', 'Sarah', 'Sonya Milanova')
+values ('Field', 'Freddie', 'Katie Adams')
 go
 
 insert into dbo.House (HouseName, UndermasterFirstName, EventsCoordinator)
-values ('Cloete', 'Kerilynne', 'Fergus Wishart')
+values ('Cloete', 'Caroline', 'Jemima Puddleduck')
 go
 
 insert into dbo.House (HouseName, UndermasterFirstName, EventsCoordinator)
-values ('Gilks', 'James', null)
+values ('Gilks', 'Gilbert', null)
 
 insert into dbo.House (HouseName, UndermasterFirstName, EventsCoordinator)
-values ('Blurton', 'James', null)
+values ('Blurton', 'Bob', null)
 go
 
 insert into dbo.House (HouseName, UndermasterFirstName, EventsCoordinator)
-values ('Gill', 'Caroline', null)
+values ('Gill', 'Gail', null)
 go
 
 insert into dbo.House (HouseName, UndermasterFirstName, EventsCoordinator)
-values ('Nilsson', 'Hugo', null)
+values ('Nilsson', 'Nigel', null)
 go
 
 insert into dbo.House (HouseName, UndermasterFirstName, EventsCoordinator)
-values ('Warner', 'Hannah', null)
+values ('Warner', 'Wanda', null)
 go
 
 SELECT HouseName, UndermasterFirstName, EventsCoordinator from dbo.House
@@ -47,7 +47,7 @@ delete from [dbo].[EventDetail]
 go
 
 insert into dbo.EventDetail (EventID, EventDate, EventStartTime, EventEndTime, EventVenue, Notes)
-values (1, '2024-06-21', '13:15', '13:45', 'C4', 'Please note that the content is predominantly chemistry-based. The L8 should be studying chemistry A Level.')
+values (1, '2024-06-29', '13:15', '13:45', 'C4', 'Please note that the content is predominantly chemistry-based. The L8 should be studying chemistry A Level.')
 go
 
 delete from dbo.HouseEvent
